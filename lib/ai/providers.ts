@@ -1,4 +1,5 @@
-import { gateway } from "@ai-sdk/gateway";
+import { anthropic } from "@ai-sdk/anthropic";
+import { openai } from "@ai-sdk/openai";
 import {
   customProvider,
   extractReasoningMiddleware,
@@ -27,6 +28,21 @@ export const myProvider = isTestEnvironment
     })()
   : null;
 
+function resolveModel(gatewayModelId: string) {
+  const [provider, ...rest] = gatewayModelId.split("/");
+  const modelName = rest.join("/");
+
+  switch (provider) {
+    case "anthropic":
+      return anthropic(modelName);
+    case "openai":
+      return openai(modelName);
+    default:
+      // Fallback to Anthropic for unknown providers
+      return anthropic(modelName || gatewayModelId);
+  }
+}
+
 export function getLanguageModel(modelId: string) {
   if (isTestEnvironment && myProvider) {
     return myProvider.languageModel(modelId);
@@ -36,27 +52,27 @@ export function getLanguageModel(modelId: string) {
     modelId.includes("reasoning") || modelId.endsWith("-thinking");
 
   if (isReasoningModel) {
-    const gatewayModelId = modelId.replace(THINKING_SUFFIX_REGEX, "");
+    const cleanModelId = modelId.replace(THINKING_SUFFIX_REGEX, "");
 
     return wrapLanguageModel({
-      model: gateway.languageModel(gatewayModelId),
+      model: resolveModel(cleanModelId),
       middleware: extractReasoningMiddleware({ tagName: "thinking" }),
     });
   }
 
-  return gateway.languageModel(modelId);
+  return resolveModel(modelId);
 }
 
 export function getTitleModel() {
   if (isTestEnvironment && myProvider) {
     return myProvider.languageModel("title-model");
   }
-  return gateway.languageModel("google/gemini-2.5-flash-lite");
+  return anthropic("claude-haiku-4-5-20251001");
 }
 
 export function getArtifactModel() {
   if (isTestEnvironment && myProvider) {
     return myProvider.languageModel("artifact-model");
   }
-  return gateway.languageModel("anthropic/claude-haiku-4.5");
+  return anthropic("claude-haiku-4-5-20251001");
 }
