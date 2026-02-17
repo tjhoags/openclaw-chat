@@ -77,15 +77,17 @@ function handleEvent(
 
     // ─── Agent response → text parts ─────────────────────────────────
     case "agent:response": {
-      const content = (data.text as string) ?? (data.content as string) ?? "";
+      const content =
+        (data.output as string) ??
+        (data.text as string) ??
+        (data.content as string) ??
+        "";
       if (content) {
-        const agentId = (data.agentId as string) ?? "";
-        const prefix = agentId ? `**[${agentId}]** ` : "";
         const id = ensureTextStarted();
         writer.write({
           type: "text-delta",
           id,
-          delta: `${prefix}${content}\n\n`,
+          delta: `${content}\n\n`,
         });
       }
       break;
@@ -93,9 +95,15 @@ function handleEvent(
 
     // ─── Task lifecycle → data annotations ───────────────────────────
     case "task:created": {
+      const task = data.task as Record<string, unknown> | undefined;
+      const title =
+        (task?.title as string) ??
+        (data.description as string) ??
+        (task?.id as string) ??
+        "";
       writer.write({
         type: "data-appendMessage" as string,
-        data: `Task created: ${(data.description as string) ?? (data.taskId as string) ?? ""}`,
+        data: `Task created: ${title}`,
       });
       break;
     }
@@ -105,15 +113,18 @@ function handleEvent(
       const taskId = (data.taskId as string) ?? "";
       writer.write({
         type: "data-appendMessage" as string,
-        data: `Task ${taskId} started by ${agentId}`,
+        data: `Task ${taskId} assigned to agent`,
       });
       break;
     }
 
     case "task:completed": {
+      // task:completed has nested structure: { task: { id, title, result }, result: { output } }
+      const task = data.task as Record<string, unknown> | undefined;
+      const title = (task?.title as string) ?? (task?.id as string) ?? "";
       writer.write({
         type: "data-appendMessage" as string,
-        data: `Task completed: ${(data.taskId as string) ?? ""}`,
+        data: `Task completed: ${title}`,
       });
       break;
     }
