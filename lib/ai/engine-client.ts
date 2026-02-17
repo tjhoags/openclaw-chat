@@ -1,5 +1,5 @@
 // OpenClaw engine HTTP client
-// Talks to the OpenClaw gateway's engine endpoints
+// Talks to the OpenClaw Next.js API routes (which call the engine directly)
 
 const ENGINE_URL = process.env.OPENCLAW_ENGINE_URL;
 const API_KEY = process.env.OPENCLAW_API_KEY;
@@ -21,7 +21,7 @@ export async function submitGoal(
     throw new Error("OPENCLAW_ENGINE_URL is not configured");
   }
 
-  const res = await fetch(`${ENGINE_URL}/api/engine/chat`, {
+  const res = await fetch(`${ENGINE_URL}/api/chat`, {
     method: "POST",
     headers: getHeaders(),
     body: JSON.stringify({ message }),
@@ -52,7 +52,7 @@ export function streamGoalEvents(
 
   return new ReadableStream<EngineSSEEvent>({
     async start(controller) {
-      const url = `${ENGINE_URL}/api/engine/chat/stream?goalId=${encodeURIComponent(goalId)}`;
+      const url = `${ENGINE_URL}/api/chat/stream?goalId=${encodeURIComponent(goalId)}`;
 
       let res: Response;
       try {
