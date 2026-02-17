@@ -48,6 +48,13 @@ export const chatModels: ChatModel[] = [
     provider: "reasoning",
     description: "Extended thinking for complex problems",
   },
+  // OpenClaw engine
+  {
+    id: "openclaw/multi-agent",
+    name: "OpenClaw Agents",
+    provider: "openclaw",
+    description: "Multi-agent system (Researcher, Coder, Reviewer, Writer)",
+  },
 ];
 
 // Group models by provider for UI

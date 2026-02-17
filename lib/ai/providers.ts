@@ -44,6 +44,12 @@ function resolveModel(gatewayModelId: string) {
 }
 
 export function getLanguageModel(modelId: string) {
+  if (modelId.startsWith("openclaw/")) {
+    throw new Error(
+      "OpenClaw engine models are handled by the engine bridge, not the AI SDK provider",
+    );
+  }
+
   if (isTestEnvironment && myProvider) {
     return myProvider.languageModel(modelId);
   }

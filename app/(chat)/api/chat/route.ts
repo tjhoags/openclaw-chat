@@ -130,6 +130,78 @@ export async function POST(request: Request) {
       });
     }
 
+    const isEngineModel = selectedChatModel.startsWith("openclaw/");
+
+    if (isEngineModel) {
+      // ─── OpenClaw engine path ────────────────────────────────────────
+      const { submitGoal } = await import("@/lib/ai/engine-client");
+      const { createEngineStream } = await import(
+        "@/lib/ai/engine-stream-bridge"
+      );
+
+      // Extract plain text from the latest user message parts
+      const userText =
+        message?.parts
+          ?.filter(
+            (p: { type: string; text?: string }) => p.type === "text",
+          )
+          .map((p: { type: string; text?: string }) => p.text ?? "")
+          .join("\n") ?? "";
+
+      const { goalId } = await submitGoal(userText);
+
+      const stream = createUIMessageStream({
+        execute: async ({ writer }) => {
+          await createEngineStream(goalId, writer);
+
+          if (titlePromise) {
+            const title = await titlePromise;
+            writer.write({ type: "data-chat-title", data: title } as any);
+            updateChatTitleById({ chatId: id, title });
+          }
+        },
+        generateId: generateUUID,
+        onFinish: async ({ messages: finishedMessages }) => {
+          if (finishedMessages.length > 0) {
+            await saveMessages({
+              messages: finishedMessages.map((currentMessage) => ({
+                id: currentMessage.id,
+                role: currentMessage.role,
+                parts: currentMessage.parts,
+                createdAt: new Date(),
+                attachments: [],
+                chatId: id,
+              })),
+            });
+          }
+        },
+        onError: () => "Oops, an error occurred!",
+      });
+
+      return createUIMessageStreamResponse({
+        stream,
+        async consumeSseStream({ stream: sseStream }) {
+          if (!process.env.REDIS_URL) {
+            return;
+          }
+          try {
+            const streamContext = getStreamContext();
+            if (streamContext) {
+              const streamId = generateId();
+              await createStreamId({ streamId, chatId: id });
+              await streamContext.createNewResumableStream(
+                streamId,
+                () => sseStream,
+              );
+            }
+          } catch (_) {
+            // ignore redis errors
+          }
+        },
+      });
+    }
+
+    // ─── Standard AI SDK path ────────────────────────────────────────
     const isReasoningModel =
       selectedChatModel.includes("reasoning") ||
       selectedChatModel.includes("thinking");
